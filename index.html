@@ -116,47 +116,12 @@
             content: "♫";
             color: #ff758c;
         }
-        
-        #audioPanel {
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 10px;
-            border-radius: 10px;
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            z-index: 100;
-        }
-        
-        #audioPanel button {
-            background: linear-gradient(135deg, #ff758c, #ff7eb3);
-            border: none;
-            padding: 8px 15px;
-            border-radius: 5px;
-            color: white;
-            cursor: pointer;
-            font-weight: bold;
-            transition: all 0.3s ease;
-        }
-        
-        #audioPanel button:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 10px rgba(255, 117, 140, 0.7);
-        }
-        
-        #volumeControl {
-            width: 80px;
-            cursor: pointer;
-        }
     </style>
 </head>
 <body>
     <canvas id="countdownCanvas"></canvas>
     <div id="stage"></div>
     <div id="exitHint"></div>
-
     
     <!-- 音乐指示器 -->
     <div class="music-indicator" id="musicIndicator"></div>
@@ -164,7 +129,7 @@
     <!-- 音频元素 -->
     <!-- 注意：请将下面的音频文件路径替换为您自己的音乐文件 -->
     <audio id="backgroundMusic" loop>
-        <source src=".\遇见.mp3" type="audio/mp3">
+        <source src="遇见.mp3" type="audio/mp3">
         您的浏览器不支持音频元素。
     </audio>
 
@@ -179,11 +144,11 @@
         
         // 飞幕提示内容
         const TIPS = [
-            '?? 我喜欢你 ??', '? 你的笑容真美 ?', '?? 爱你每一天 ??', '?? 心心相印 ??',
-            '?? 想你 ??', '?? 最爱是你 ??', '?? 晚安好梦 ??', '?? 照顾好自己 ??',
-            '?? 思念如花 ??', '?? 代码写不出我的爱 ??', '?? 你是我的一切 ??', '?? Python不如你美 ??',
-            '?? 心跳加速 ??', '?? 春风十里不如你 ??', '?? 阳光般温暖 ??', '?? 彩虹般绚烂 ??',
-            '?? 旋律般优美 ??', '?? 故事的主角 ??', '?? 星空般璀璨 ??', '?? 闪耀如你 ??',
+               '💖 我喜欢你 💖', '✨ 你的笑容真美 ✨', '🌹 爱你每一天 🌹', '💕 心心相印 💕',
+            '🌟 想你 🌟', '🎀 最爱是你 🎀', '🌙 晚安好梦 🌙', '💧 照顾好自己 💧',
+            '🌺 思念如花 🌺', '💝 你是我的一切 💝', 
+            '💘 心跳加速 💘', '🌸 春风十里不如你 🌸', '🌞 阳光般温暖 🌞', '🌈 彩虹般绚烂 🌈',
+            '🎵 旋律般优美 🎵', '📚 故事的主角 📚', '🌠 星空般璀璨 🌠', '💫 闪耀如你 💫',
             '天天开心', '我好想你', '照顾好自己', '我好爱你', '记得多穿衣服', '记得开心', '一切顺利',
             '你要好好的', '我会一直在', '嘿嘿', '我在呢', '宝宝加油', '早点休息', '多喝热水', '出门带伞',
             '按时吃饭', '想你的一天', '抱抱你', '不怕 有我呢', '今天也要元气满满', '你是最棒的', '小心感冒',
@@ -345,9 +310,6 @@
             constructor() {
                 this.audio = document.getElementById('backgroundMusic');
                 this.isPlaying = false;
-                this.playBtn = document.getElementById('playBtn');
-                this.pauseBtn = document.getElementById('pauseBtn');
-                this.volumeControl = document.getElementById('volumeControl');
                 this.musicIndicator = document.getElementById('musicIndicator');
                 
                 // 设置音频音量
@@ -370,21 +332,6 @@
             }
             
             setupEventListeners() {
-                // 播放按钮事件
-                this.playBtn.addEventListener('click', () => {
-                    this.play();
-                });
-                
-                // 暂停按钮事件
-                this.pauseBtn.addEventListener('click', () => {
-                    this.pause();
-                });
-                
-                // 音量控制事件
-                this.volumeControl.addEventListener('input', () => {
-                    this.audio.volume = this.volumeControl.value;
-                });
-                
                 // 音乐指示器点击事件
                 this.musicIndicator.addEventListener('click', () => {
                     this.toggle();
@@ -401,11 +348,6 @@
             // 暂停音乐
             pause() {
                 this.audio.pause();
-            }
-            
-            // 设置音量
-            setVolume(volume) {
-                this.audio.volume = volume;
             }
             
             // 切换播放状态
@@ -720,6 +662,4 @@
         window.addEventListener('load', main);
     </script>
 </body>
-
 </html>
-
