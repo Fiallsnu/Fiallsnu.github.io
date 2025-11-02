@@ -155,14 +155,8 @@
 <body>
     <canvas id="countdownCanvas"></canvas>
     <div id="stage"></div>
-    <div id="exitHint">按ESC键退出</div>
-    
-    <!-- 音频控制面板 -->
-    <div id="audioPanel">
-        <button id="playBtn">播放</button>
-        <button id="pauseBtn">暂停</button>
-        <input type="range" id="volumeControl" min="0" max="1" step="0.1" value="0.7">
-    </div>
+    <div id="exitHint"></div>
+
     
     <!-- 音乐指示器 -->
     <div class="music-indicator" id="musicIndicator"></div>
@@ -170,7 +164,7 @@
     <!-- 音频元素 -->
     <!-- 注意：请将下面的音频文件路径替换为您自己的音乐文件 -->
     <audio id="backgroundMusic" loop>
-        <source src="C:\Users\mm\Desktop\网站\遇见.mp3" type="audio/mp3">
+        <source src=".\遇见.mp3" type="audio/mp3">
         您的浏览器不支持音频元素。
     </audio>
 
@@ -726,4 +720,5 @@
         window.addEventListener('load', main);
     </script>
 </body>
+
 </html>
