@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title></title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background-color: #000;
+            overflow: hidden;
+            font-family: "Microsoft YaHei", "SimHei", Arial, sans-serif;
+        }
+        
+        #canvas {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        
+        #countdownCanvas {
+            display: block;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 2;
+        }
+        
+        #stage {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 3;
+        }
+        
+        #exitHint {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+            pointer-events: none;
+            z-index: 4;
+        }
+        
+        .msg {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            padding: 16px 26px;
+            border-radius: 18px;
+            color: #fff;
+            font-weight: 700;
+            font-size: clamp(16px, 3.5vmin, 28px);
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            opacity: 0;
+            transform: translate(-50%, -50%) translate(var(--dx), var(--dy)) scale(0.7) rotate(var(--rot));
+            animation: fly var(--dur) cubic-bezier(0.25, 0.7, 0.3, 1) var(--delay) both;
+            box-shadow: 0 8px 26px rgba(0, 0, 0, 0.25);
+        }
+        
+        @keyframes fly {
+            0% {
+                opacity: 0;
+                transform: translate(-50%, -50%) translate(var(--dx), var(--dy)) scale(0.7) rotate(var(--rot));
+            }
+            15% {
+                opacity: 1;
+            }
+            55% {
+                opacity: 1;
+                transform: translate(-50%, -50%) translate(calc(var(--dx) * 0.1), calc(var(--dy) * 0.1)) scale(1.02);
+            }
+            90% {
+                opacity: 1;
+                transform: translate(-50%, -50%) translate(0, 0) scale(1) rotate(0deg);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -50%) translate(0, 0) scale(1.03);
+            }
+        }
+        
+        .music-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 30px;
+            height: 30px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            cursor: pointer;
+        }
+        
+        .music-indicator::after {
+            content: "?";
+            color: white;
+            font-size: 16px;
+        }
+        
+        .music-indicator.playing::after {
+            content: "?";
+            color: #ff758c;
+        }
+        
+        #audioPanel {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 10px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            z-index: 100;
+        }
+        
+        #audioPanel button {
+            background: linear-gradient(135deg, #ff758c, #ff7eb3);
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        #audioPanel button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 10px rgba(255, 117, 140, 0.7);
+        }
+        
+        #volumeControl {
+            width: 80px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="countdownCanvas"></canvas>
+    <div id="stage"></div>
+    <div id="exitHint">按ESC键退出</div>
+    
+    <!-- 音频控制面板 -->
+    <div id="audioPanel">
+        <button id="playBtn">播放</button>
+        <button id="pauseBtn">暂停</button>
+        <input type="range" id="volumeControl" min="0" max="1" step="0.1" value="0.7">
+    </div>
+    
+    <!-- 音乐指示器 -->
+    <div class="music-indicator" id="musicIndicator"></div>
+    
+    <!-- 音频元素 -->
+    <!-- 注意：请将下面的音频文件路径替换为您自己的音乐文件 -->
+    <audio id="backgroundMusic" loop>
+        <source src="C:\Users\mm\Desktop\网站\遇见.mp3" type="audio/mp3">
+        您的浏览器不支持音频元素。
+    </audio>
+
+    <script>
+        // 获取屏幕尺寸
+        const SCREEN_WIDTH = window.innerWidth;
+        const SCREEN_HEIGHT = window.innerHeight;
+        
+        // 颜色定义
+        const BLACK = '#000000';
+        const WHITE = '#FFFFFF';
+        
+        // 飞幕提示内容
+        const TIPS = [
+            '?? 我喜欢你 ??', '? 你的笑容真美 ?', '?? 爱你每一天 ??', '?? 心心相印 ??',
+            '?? 想你 ??', '?? 最爱是你 ??', '?? 晚安好梦 ??', '?? 照顾好自己 ??',
+            '?? 思念如花 ??', '?? 代码写不出我的爱 ??', '?? 你是我的一切 ??', '?? Python不如你美 ??',
+            '?? 心跳加速 ??', '?? 春风十里不如你 ??', '?? 阳光般温暖 ??', '?? 彩虹般绚烂 ??',
+            '?? 旋律般优美 ??', '?? 故事的主角 ??', '?? 星空般璀璨 ??', '?? 闪耀如你 ??',
+            '天天开心', '我好想你', '照顾好自己', '我好爱你', '记得多穿衣服', '记得开心', '一切顺利',
+            '你要好好的', '我会一直在', '嘿嘿', '我在呢', '宝宝加油', '早点休息', '多喝热水', '出门带伞',
+            '按时吃饭', '想你的一天', '抱抱你', '不怕 有我呢', '今天也要元气满满', '你是最棒的', '小心感冒',
+            '路上注意安全', '相信自己', '一切都会好起来', '慢慢来不着急', '笑一笑', '摸摸头', '好梦常在',
+            '阳光会来的', '我等你', '别熬夜啦', '喝点热汤', '记得吃早餐', '今天会更好', '你值得被爱',
+            '小慧天天开心', '我超喜欢你', '别怕我在', '想你想你', '给你小花花', '小幸运在路上',
+            '愿你心情晴朗', '天气冷了加衣', '温柔以待自己', '你的笑真好看', '保持可爱', '出门顺利',
+            '平安喜乐', '不开心就去看看猫猫', '遇见都是礼物', '热爱就在此刻', '生活会抱抱你', '你的小太阳来了',
+            '心怀浪漫宇宙', '点亮今天', '给你满分运气', '我会一直陪你', '继续加油', '梦想就在不远处',
+            '你一定行', '希望永远在', '不要害怕', '风会带走烦恼', '你是独一无二的', '微笑面对一切',
+            '心情好天气就好', '加油啊未来可期', '你的努力会发光', '生活慢一点没关系', '放轻松',
+            '善待自己', '别忘了呼吸', '深夜也会有星光', '你值得最好的', '愿世界温柔待你',
+            '感谢有你', '每一天都新的开始', '一起向阳', '相信光', '未来在等你', '继续前进',
+            '没有过不去的坎', '没有什么是一顿螺蛳粉解决不了的 如果有那就两顿', '记得吃水果', '要开心噢', '星光不问赶路人', '明天会更好',
+            '放下焦虑', '风会告诉你方向', '幸福就在身边', '你已经做得很好', '善良的人最幸运',
+            '时间会治愈一切', '温暖永不缺席', '每一次微笑都值得', '别忘记初心', '每一步都算数',
+            '夜色温柔', '你本身就是光', '世界很大慢慢看', '相信奇迹', '心中有爱', '保持热爱',
+            '有梦就去追', '你是最美的意外', '勇敢一点', '别怕犯错', '雨后会晴', '你值得所有美好',
+            '爱你爱你', '别忘了休息', '喝杯奶茶', '开心每一天', '心若向阳无畏悲伤',
+            '好运连连', '笑容最可爱', '你很棒！', '温柔又坚定', '做个发光的人', '风吹来的都是好运',
+            '生活要有小惊喜', '期待明天', '珍惜现在', '梦会实现', '保持热情', '去感受风和自由',
+            '幸福是一种选择', '猫猫拯救世界', '你的小可爱来了', '要一直幸福呀', '明天见～'
+        ];
+        
+        // 颜色方案
+        const COLORS = [
+            [255, 107, 157], [255, 138, 180], [255, 168, 201],
+            [255, 198, 221], [255, 64, 129], [245, 0, 87]
+        ];
+        
+        const BG_COLORS = [
+            [255, 182, 193], [255, 192, 203], [255, 218, 185],
+            [255, 228, 225], [255, 240, 245], [255, 250, 250]
+        ];
+        
+        // 工具函数
+        function random(min, max) {
+            return Math.random() * (max - min) + min;
+        }
+        
+        function randomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+        
+        function randomChoice(arr) {
+            return arr[randomInt(0, arr.length - 1)];
+        }
+        
+        // 飞幕方向定义
+        const directions = [
+            { dx: '0vw', dy: '-80vh' },   // 上
+            { dx: '0vw', dy: '80vh' },    // 下
+            { dx: '-80vw', dy: '0vh' },   // 左
+            { dx: '80vw', dy: '0vh' },    // 右
+            { dx: '-70vw', dy: '-70vh' }, // 左上
+            { dx: '70vw', dy: '-70vh' },  // 右上
+            { dx: '-70vw', dy: '70vh' },  // 左下
+            { dx: '70vw', dy: '70vh' },   // 右下
+            { dx: '0vw', dy: '-60vh' },   // 中上
+            { dx: '0vw', dy: '60vh' },    // 中下
+            { dx: '-60vw', dy: '0vh' },   // 中左
+            { dx: '60vw', dy: '0vh' }     // 中右
+        ];
+        
+        // 随机颜色函数
+        function randomColor() {
+            const colors = [
+                ['#ff758c', '#ff7eb3'],
+                ['#a18cd1', '#fbc2eb'],
+                ['#f6d365', '#fda085'],
+                ['#84fab0', '#8fd3f4'],
+                ['#f093fb', '#f5576c'],
+                ['#4facfe', '#00f2fe'],
+                ['#43e97b', '#38f9d7'],
+                ['#fa709a', '#fee140'],
+                ['#30cfd0', '#330867'],
+                ['#5ee7df', '#b490ca']
+            ];
+            const c = colors[Math.floor(Math.random() * colors.length)];
+            return `linear-gradient(135deg, ${c[0]}, ${c[1]})`;
+        }
+        
+        // 粒子类
+        class Particle {
+            constructor(x, y, size, color, speedX, speedY, isBackground = false) {
+                this.x = x;
+                this.y = y;
+                this.size = size;
+                this.color = color;
+                this.speedX = speedX;
+                this.speedY = speedY;
+                this.alpha = 255;
+                this.isBackground = isBackground;
+                this.originalX = x;
+                this.originalY = y;
+                this.targetX = x;
+                this.targetY = y;
+                this.animationProgress = 0;
+                this.life = isBackground ? randomInt(100, 200) : 255;
+            }
+            
+            move() {
+                if (this.isBackground) {
+                    this.x += this.speedX;
+                    this.y += this.speedY;
+                    this.life--;
+                    
+                    if (this.x <= 0 || this.x >= SCREEN_WIDTH) {
+                        this.speedX *= -1;
+                    }
+                    if (this.y <= 0 || this.y >= SCREEN_HEIGHT) {
+                        this.speedY *= -1;
+                    }
+                    
+                    return this.life <= 0;
+                } else {
+                    this.x += this.speedX;
+                    this.y += this.speedY;
+                    this.alpha = Math.max(0, this.alpha - 2);
+                    return false;
+                }
+            }
+            
+            moveToTarget(speed = 0.05) {
+                if (this.isBackground) {
+                    return true;
+                }
+                
+                this.animationProgress = Math.min(1.0, this.animationProgress + speed);
+                const ease = 1 - Math.pow(1 - this.animationProgress, 3);
+                
+                this.x = this.originalX + (this.targetX - this.originalX) * ease;
+                this.y = this.originalY + (this.targetY - this.originalY) * ease;
+                
+                return this.animationProgress >= 1.0;
+            }
+            
+            setTarget(targetX, targetY) {
+                this.targetX = targetX;
+                this.targetY = targetY;
+                this.originalX = this.x;
+                this.originalY = this.y;
+                this.animationProgress = 0;
+            }
+            
+            draw(ctx) {
+                ctx.save();
+                const alpha = this.isBackground ? Math.min(200, this.life * 2) / 255 : this.alpha / 255;
+                ctx.fillStyle = `rgba(${this.color[0]}, ${this.color[1]}, ${this.color[2]}, ${alpha})`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+        
+        // 音频控制器类
+        class AudioController {
+            constructor() {
+                this.audio = document.getElementById('backgroundMusic');
+                this.isPlaying = false;
+                this.playBtn = document.getElementById('playBtn');
+                this.pauseBtn = document.getElementById('pauseBtn');
+                this.volumeControl = document.getElementById('volumeControl');
+                this.musicIndicator = document.getElementById('musicIndicator');
+                
+                // 设置音频音量
+                this.audio.volume = 0.7;
+                
+                // 添加音频事件监听
+                this.audio.addEventListener('play', () => {
+                    this.isPlaying = true;
+                    this.musicIndicator.classList.add('playing');
+                    console.log('音乐开始播放');
+                });
+                
+                this.audio.addEventListener('pause', () => {
+                    this.isPlaying = false;
+                    this.musicIndicator.classList.remove('playing');
+                    console.log('音乐暂停');
+                });
+                
+                this.setupEventListeners();
+            }
+            
+            setupEventListeners() {
+                // 播放按钮事件
+                this.playBtn.addEventListener('click', () => {
+                    this.play();
+                });
+                
+                // 暂停按钮事件
+                this.pauseBtn.addEventListener('click', () => {
+                    this.pause();
+                });
+                
+                // 音量控制事件
+                this.volumeControl.addEventListener('input', () => {
+                    this.audio.volume = this.volumeControl.value;
+                });
+                
+                // 音乐指示器点击事件
+                this.musicIndicator.addEventListener('click', () => {
+                    this.toggle();
+                });
+            }
+            
+            // 播放音乐
+            play() {
+                this.audio.play().catch(error => {
+                    console.log('播放失败:', error);
+                });
+            }
+            
+            // 暂停音乐
+            pause() {
+                this.audio.pause();
+            }
+            
+            // 设置音量
+            setVolume(volume) {
+                this.audio.volume = volume;
+            }
+            
+            // 切换播放状态
+            toggle() {
+                if (this.isPlaying) {
+                    this.pause();
+                } else {
+                    this.play();
+                }
+            }
+        }
+        
+        // 粒子倒计时控制器
+        class ParticleCountdown {
+            constructor() {
+                this.canvas = document.getElementById('countdownCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.canvas.width = SCREEN_WIDTH;
+                this.canvas.height = SCREEN_HEIGHT;
+                this.canvas.style.display = 'block';
+                
+                this.particles = [];
+                this.backgroundParticles = [];
+                
+                this.currentNumber = 3;
+                this.animationPhase = "form";
+                this.animationProgress = 0;
+                this.animationSpeed = 0.03;
+                this.holdTime = 0;
+                this.done = false;
+                
+                this.bgColor = BLACK;
+                
+                this.createBackgroundParticles();
+                this.createParticlesForNumber(this.currentNumber);
+                
+                this.lastTime = 0;
+            }
+            
+            createBackgroundParticles() {
+                const numParticles = 100;
+                for (let i = 0; i < numParticles; i++) {
+                    const x = randomInt(0, SCREEN_WIDTH);
+                    const y = randomInt(0, SCREEN_HEIGHT);
+                    const size = randomInt(2, 4);
+                    const color = randomChoice(BG_COLORS);
+                    const speedX = random(-0.5, 0.5);
+                    const speedY = random(-0.5, 0.5);
+                    
+                    const particle = new Particle(x, y, size, color, speedX, speedY, true);
+                    this.backgroundParticles.push(particle);
+                }
+            }
+            
+            createParticlesForNumber(number) {
+                this.particles = [];
+                
+                // 创建临时Canvas来绘制数字
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = SCREEN_WIDTH;
+                tempCanvas.height = SCREEN_HEIGHT;
+                const tempCtx = tempCanvas.getContext('2d');
+                
+                tempCtx.fillStyle = WHITE;
+                tempCtx.font = 'bold 200px Arial';
+                tempCtx.textAlign = 'center';
+                tempCtx.textBaseline = 'middle';
+                tempCtx.fillText(number, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
+                
+                const textPixels = [];
+                const imageData = tempCtx.getImageData(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+                const data = imageData.data;
+                
+                for (let y = 0; y < SCREEN_HEIGHT; y++) {
+                    for (let x = 0; x < SCREEN_WIDTH; x++) {
+                        const index = (y * SCREEN_WIDTH + x) * 4;
+                        if (data[index + 3] > 128) {
+                            textPixels.push({ x, y });
+                        }
+                    }
+                }
+                
+                const sampleSize = Math.min(500, textPixels.length);
+                const sampledPixels = [];
+                for (let i = 0; i < sampleSize; i++) {
+                    const index = randomInt(0, textPixels.length - 1);
+                    sampledPixels.push(textPixels[index]);
+                    textPixels.splice(index, 1);
+                }
+                
+                for (const { x, y } of sampledPixels) {
+                    const startX = randomInt(0, SCREEN_WIDTH);
+                    const startY = randomInt(0, SCREEN_HEIGHT);
+                    
+                    const size = randomInt(3, 6);
+                    const color = randomChoice(COLORS);
+                    const speedX = random(-1, 1);
+                    const speedY = random(-1, 1);
+                    
+                    const particle = new Particle(startX, startY, size, color, speedX, speedY);
+                    particle.setTarget(x, y);
+                    
+                    this.particles.push(particle);
+                }
+            }
+            
+            update(deltaTime) {
+                const deadParticles = [];
+                for (const particle of this.backgroundParticles) {
+                    if (particle.move()) {
+                        deadParticles.push(particle);
+                    }
+                }
+                
+                for (const particle of deadParticles) {
+                    this.backgroundParticles.splice(this.backgroundParticles.indexOf(particle), 1);
+                    
+                    const x = randomInt(0, SCREEN_WIDTH);
+                    const y = randomInt(0, SCREEN_HEIGHT);
+                    const size = randomInt(2, 4);
+                    const color = randomChoice(BG_COLORS);
+                    const speedX = random(-0.5, 0.5);
+                    const speedY = random(-0.5, 0.5);
+                    
+                    const newParticle = new Particle(x, y, size, color, speedX, speedY, true);
+                    this.backgroundParticles.push(newParticle);
+                }
+                
+                if (this.animationPhase === "form") {
+                    let allArrived = true;
+                    for (const particle of this.particles) {
+                        if (!particle.moveToTarget(this.animationSpeed)) {
+                            allArrived = false;
+                        }
+                    }
+                    
+                    if (allArrived) {
+                        this.animationPhase = "hold";
+                        this.holdTime = Date.now();
+                    }
+                } else if (this.animationPhase === "hold") {
+                    if (Date.now() - this.holdTime > 1000) {
+                        this.animationPhase = "disperse";
+                        this.animationProgress = 0;
+                        
+                        for (const particle of this.particles) {
+                            const angle = random(0, 2 * Math.PI);
+                            const distance = random(100, 300);
+                            let targetX = particle.x + Math.cos(angle) * distance;
+                            let targetY = particle.y + Math.sin(angle) * distance;
+                            
+                            targetX = Math.max(0, Math.min(targetX, SCREEN_WIDTH));
+                            targetY = Math.max(0, Math.min(targetY, SCREEN_HEIGHT));
+                            
+                            particle.setTarget(targetX, targetY);
+                        }
+                    }
+                } else if (this.animationPhase === "disperse") {
+                    let allArrived = true;
+                    for (const particle of this.particles) {
+                        if (!particle.moveToTarget(this.animationSpeed * 2)) {
+                            allArrived = false;
+                        }
+                    }
+                    
+                    if (allArrived) {
+                        this.currentNumber--;
+                        if (this.currentNumber > 0) {
+                            this.animationPhase = "form";
+                            this.createParticlesForNumber(this.currentNumber);
+                        } else {
+                            for (const particle of this.particles) {
+                                const angle = random(0, 2 * Math.PI);
+                                const distance = 1000;
+                                const targetX = particle.x + Math.cos(angle) * distance;
+                                const targetY = particle.y + Math.sin(angle) * distance;
+                                particle.setTarget(targetX, targetY);
+                            }
+                            
+                            this.animationPhase = "final_disperse";
+                        }
+                    }
+                } else if (this.animationPhase === "final_disperse") {
+                    let allArrived = true;
+                    for (const particle of this.particles) {
+                        if (!particle.moveToTarget(this.animationSpeed)) {
+                            allArrived = false;
+                        }
+                    }
+                    
+                    if (allArrived) {
+                        this.done = true;
+                    }
+                }
+            }
+            
+            draw() {
+                this.ctx.fillStyle = this.bgColor;
+                this.ctx.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+                
+                for (const particle of this.backgroundParticles) {
+                    particle.draw(this.ctx);
+                }
+                
+                for (const particle of this.particles) {
+                    particle.draw(this.ctx);
+                }
+            }
+            
+            run(timestamp) {
+                if (!this.lastTime) this.lastTime = timestamp;
+                const deltaTime = timestamp - this.lastTime;
+                this.lastTime = timestamp;
+                
+                if (!this.done) {
+                    this.update(deltaTime);
+                    this.draw();
+                    requestAnimationFrame(this.run.bind(this));
+                } else {
+                    this.canvas.style.display = 'none';
+                    // 启动飞幕效果
+                    const flyEffect = new FlyMessageEffect();
+                    flyEffect.start();
+                }
+            }
+        }
+        
+        // 飞幕效果类
+        class FlyMessageEffect {
+            constructor() {
+                this.stage = document.getElementById('stage');
+                this.stage.style.display = 'block';
+                this.running = false;
+                this.messageCount = 0;
+                this.maxMessages = 150; // 限制消息数量，避免性能问题
+            }
+            
+            createMessage() {
+                if (this.messageCount >= this.maxMessages) return;
+                
+                const el = document.createElement('div');
+                el.className = 'msg';
+                const d = randomChoice(directions);
+                el.style.setProperty('--dx', d.dx);
+                el.style.setProperty('--dy', d.dy);
+                el.style.setProperty('--rot', random(-60, 60) + 'deg');
+                el.style.setProperty('--dur', (random(6.5, 9)) + 's');
+                el.style.setProperty('--delay', (this.messageCount * 0.13 + random(0, 0.5)) + 's');
+                el.style.background = randomColor();
+                el.textContent = randomChoice(TIPS);
+                el.addEventListener('animationend', () => {
+                    el.remove();
+                    this.messageCount--;
+                });
+                this.stage.appendChild(el);
+                this.messageCount++;
+            }
+            
+            start() {
+                this.running = true;
+                
+                // 持续创建消息
+                const createInterval = setInterval(() => {
+                    if (this.running) {
+                        this.createMessage();
+                    } else {
+                        clearInterval(createInterval);
+                    }
+                }, 200); // 每200毫秒创建一个新消息
+                
+                // 添加ESC键退出功能
+                const escHandler = (event) => {
+                    if (event.key === 'Escape') {
+                        this.stop();
+                    }
+                };
+                document.addEventListener('keydown', escHandler);
+                this.escHandler = escHandler;
+            }
+            
+            stop() {
+                this.running = false;
+                document.removeEventListener('keydown', this.escHandler);
+                this.stage.style.display = 'none';
+                document.getElementById('exitHint').style.display = 'none';
+            }
+        }
+        
+        // 主函数
+        function main() {
+            // 创建音频控制器
+            const audioController = new AudioController();
+            
+            // 添加点击事件监听器，用于触发音频播放
+            const playAudioOnInteraction = () => {
+                audioController.play();
+                // 移除事件监听器，避免重复触发
+                document.removeEventListener('click', playAudioOnInteraction);
+                document.removeEventListener('keydown', playAudioOnInteraction);
+            };
+            
+            // 添加事件监听器，等待用户交互
+            document.addEventListener('click', playAudioOnInteraction);
+            document.addEventListener('keydown', playAudioOnInteraction);
+            
+            // 先运行粒子倒计时
+            const countdown = new ParticleCountdown();
+            requestAnimationFrame(countdown.run.bind(countdown));
+        }
+        
+        // 页面加载完成后启动程序
+        window.addEventListener('load', main);
+    </script>
+</body>
+</html>
